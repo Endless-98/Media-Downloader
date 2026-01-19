@@ -1,0 +1,110 @@
+Media Downloader - Project Structure
+====================================
+
+MediaDownloader/
+│
+├── src/                           # Application source code
+│   ├── main.py                    # Entry point with logging setup
+│   ├── core/                      # Core business logic
+│   │   ├── __init__.py
+│   │   ├── downloader.py          # YouTube download (yt-dlp)
+│   │   ├── media_processor.py     # Video/audio processing (FFmpeg)
+│   │   └── logger.py              # Comprehensive logging system [NEW]
+│   │
+│   └── ui/                        # User interface (PyQt6)
+│       ├── __init__.py
+│       ├── main_window.py         # Main application window
+│       ├── video_player.py        # Video playback widget
+│       ├── timeline.py            # Segment editor with timeline
+│       ├── segment_panel.py       # Segment list and controls
+│       └── styles.py              # Dark theme stylesheet
+│
+├── venv/                          # Python virtual environment
+│
+├── LOGGING.md                     # Comprehensive logging guide [NEW]
+├── LOGGING_SUMMARY.md             # Quick logging reference [NEW]
+├── IMPLEMENTATION_COMPLETE.md     # This implementation summary [NEW]
+├── PROJECT_STRUCTURE.txt          # This file [NEW]
+│
+├── README.md                      # User guide (updated)
+├── requirements.txt               # Python dependencies
+├── build.bat                      # Windows build script
+├── build.sh                       # Linux/Mac build script
+├── MediaDownloader.spec           # PyInstaller configuration
+│
+└── .gitignore                     # Git ignore rules
+
+Key Files for Logging
+====================
+
+✓ src/core/logger.py - Central logging module
+  - Dual output (console + file)
+  - Automatic log file creation
+  - Configurable severity levels
+
+✓ ~/.media_downloader/logs/ - Log storage (created automatically)
+  - app_20260118_180728.log
+  - app_20260118_180643.log
+  - etc. (one per run)
+
+Dependency Graph
+================
+
+main.py
+  ├── ui/main_window.py
+  │   ├── ui/video_player.py (PyQt6)
+  │   ├── ui/timeline.py (PyQt6)
+  │   ├── ui/segment_panel.py (PyQt6)
+  │   ├── ui/styles.py
+  │   ├── core/downloader.py (yt-dlp)
+  │   ├── core/media_processor.py (FFmpeg)
+  │   └── core/logger.py [NEW]
+  │
+  └── core/logger.py [NEW] - Used by all modules
+
+All modules import logger:
+- core/downloader.py imports logger
+- core/media_processor.py imports logger
+- ui/main_window.py imports logger
+- ui/video_player.py (ready for logging)
+- ui/timeline.py (ready for logging)
+- ui/segment_panel.py (ready for logging)
+
+Technology Stack
+================
+
+Frontend:    PyQt6 (cross-platform native UI)
+Download:    yt-dlp (YouTube video downloading)
+Processing:  FFmpeg (video/audio manipulation)
+Logging:     Python's built-in logging [NEW]
+Languages:   Python 3.10+
+Deployment:  PyInstaller (standalone executables)
+
+Logging System
+==============
+
+Location: ~/.media_downloader/logs/
+Pattern:  TIMESTAMP - MODULE - LEVEL - MESSAGE
+Levels:   DEBUG (detailed), INFO (normal), WARNING (alert), ERROR (failure)
+Output:   Console (real-time) + File (permanent)
+Coverage: Startup, downloads, processing, UI, errors, full tracebacks
+
+Statistics
+==========
+
+Total Python files in src/: 11
+  - Core modules: 4 (including 1 new logger)
+  - UI modules: 6
+  - Entry point: 1
+
+Lines of code: ~2,500
+  - UI: ~1,400 lines (video player, timeline, segments)
+  - Core: ~800 lines (download, processing)
+  - Logging: ~60 lines (minimal, efficient)
+
+Documentation: 4 markdown files
+  - README.md: User guide
+  - LOGGING.md: Comprehensive debugging guide
+  - LOGGING_SUMMARY.md: Quick reference
+  - IMPLEMENTATION_COMPLETE.md: What was built
+

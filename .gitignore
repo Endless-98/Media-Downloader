@@ -1,0 +1,39 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# PyInstaller
+build/
+dist/
+*.manifest
+*.spec.bak
+ffmpeg_bin/
+ffmpeg_temp/
+ffmpeg.zip
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Downloads
+downloads/
+
+# Test files
+Tests/
+test_download.py
+nul
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
