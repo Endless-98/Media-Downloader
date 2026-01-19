@@ -2,11 +2,11 @@ import logging
 import sys
 from pathlib import Path
 from datetime import datetime
+from .paths import get_logs_dir
 
 
 def setup_logging():
-    log_dir = Path.home() / ".media_downloader" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    log_dir = get_logs_dir()
     
     log_file = log_dir / f"app_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     

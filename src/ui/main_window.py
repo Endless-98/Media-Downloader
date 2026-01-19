@@ -13,6 +13,7 @@ from ui.segment_panel import SegmentPanel
 from core.downloader import Downloader
 from core.media_processor import MediaProcessor, Segment
 from core.logger import get_logger
+from core.paths import get_downloads_dir, get_exports_dir
 
 logger = get_logger(__name__)
 
@@ -79,7 +80,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 700)
         self.setStyleSheet(STYLESHEET)
         
-        download_dir = Path.home() / ".media_downloader" / "downloads"
+        download_dir = get_downloads_dir()
         logger.info(f"Download directory: {download_dir}")
         self.downloader = Downloader(download_dir)
         
@@ -209,7 +210,8 @@ class MainWindow(QMainWindow):
     def _on_download_finished(self, file_path: Path):
         self.download_btn.setEnabled(True)
         self.progress_bar.hide()
-        self.status_label.setText(f"Downloaded: {file_path.name}")
+        self.status_label.setText(f"Downloaded to: {file_path.parent}\\{file_path.name}")
+        logger.info(f"Download complete, auto-loading video: {file_path}")
         self._load_video(file_path)
     
     def _on_download_error(self, error: str):
@@ -219,8 +221,10 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Download Error", error)
     
     def _load_file(self):
+        # Start in downloads directory where videos are saved
+        start_dir = get_downloads_dir()
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open Video", str(Path.home()),
+            self, "Open Video", str(start_dir),
             "Video Files (*.mp4 *.mkv *.webm *.avi);;All Files (*)"
         )
         if file_path:
@@ -323,8 +327,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Export", "No segments to export.")
             return
         
+        # Default to Documents/MediaDownloader for easy access
+        default_export_dir = get_exports_dir()
         output_dir = QFileDialog.getExistingDirectory(
-            self, "Select Export Folder", str(Path.home())
+            self, "Select Export Folder", str(default_export_dir)
         )
         if not output_dir:
             return

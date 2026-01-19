@@ -67,10 +67,12 @@ python src/main.py
 1. **Download a Video:**
    - Paste a YouTube URL in the input field
    - Click "Download"
-   - Wait for download to complete
+   - Video is automatically loaded when download completes
+   - Downloaded videos are saved to `%LOCALAPPDATA%\MediaDownloader\Downloads` (Windows) or `~/.local/share/MediaDownloader/Downloads` (Linux)
 
 2. **Load Existing File:**
-   - Click "Load File" to open a local video
+   - Click "Load File" to browse and open a local video
+   - File browser starts in your downloads folder for convenience
 
 3. **Create Segments:**
    - Click "+ Add" to create a segment at current position
@@ -81,8 +83,20 @@ python src/main.py
 4. **Export:**
    - Check "Audio Only (.wav)" if you only want audio
    - Click "Export Segments"
-   - Choose an output folder
+   - Default export location: `Documents\MediaDownloader` (easy to find!)
    - All segments will be exported with their names
+
+## File Locations
+
+**Windows:**
+- Downloads: `%LOCALAPPDATA%\MediaDownloader\Downloads` (e.g., `C:\Users\YourName\AppData\Local\MediaDownloader\Downloads`)
+- Exports: `Documents\MediaDownloader`
+- Logs: `%LOCALAPPDATA%\MediaDownloader\Logs`
+
+**Linux:**
+- Downloads: `~/.local/share/MediaDownloader/Downloads`
+- Exports: `~/Documents/MediaDownloader`
+- Logs: `~/.local/share/MediaDownloader/Logs`
 
 ## Debugging & Logs
 
@@ -91,8 +105,6 @@ The app creates detailed logs for all operations. See [LOGGING.md](LOGGING.md) f
 - What information is logged
 - How to troubleshoot common issues
 - Viewing and searching logs
-
-Logs are saved in `~/.media_downloader/logs/` with timestamps, so every app run creates a separate file for easy tracking.
 
 ## Project Structure
 
