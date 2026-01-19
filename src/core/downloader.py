@@ -24,12 +24,12 @@ class Downloader:
         logger.debug(f"Output directory: {self.output_dir}")
         logger.debug(f"Output directory exists: {self.output_dir.exists()}")
         
-        downloaded_file = None
+        # Track the final filename (after all post-processing)
+        final_file = None
         files_before = set(os.listdir(self.output_dir)) if self.output_dir.exists() else set()
         logger.debug(f"Files before download: {files_before}")
         
         def progress_hook(d):
-            nonlocal downloaded_file
             if d["status"] == "downloading":
                 total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
                 downloaded = d.get("downloaded_bytes", 0)
@@ -39,15 +39,24 @@ class Downloader:
                     if progress_callback:
                         progress_callback(downloaded / total, "Downloading...")
             elif d["status"] == "finished":
-                if "filename" in d and d["filename"]:
-                    downloaded_file = Path(d["filename"])
-                    logger.info(f"Download finished (from hook): {downloaded_file}")
-                else:
-                    logger.debug("Progress hook finished but no filename provided")
+                logger.debug(f"Download phase finished: {d.get('filename', 'unknown')}")
                 if progress_callback:
-                    progress_callback(1.0, "Processing...")
+                    progress_callback(0.9, "Processing...")
             elif d["status"] == "error":
                 logger.error(f"yt-dlp error in hook: {d.get('info_dict', {}).get('exception')}")
+        
+        def postprocessor_hook(d):
+            nonlocal final_file
+            # Capture the final filename after all post-processing (including merging)
+            if d["status"] == "finished":
+                if "info_dict" in d:
+                    # Get the final filepath from info_dict
+                    filepath = d["info_dict"].get("filepath")
+                    if filepath:
+                        final_file = Path(filepath)
+                        logger.info(f"Post-processor finished, final file: {final_file}")
+                if progress_callback:
+                    progress_callback(1.0, "Complete!")
         
         opts = {
             # Format selection with multiple fallbacks
@@ -55,6 +64,9 @@ class Downloader:
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
             "outtmpl": output_template,
             "progress_hooks": [progress_hook],
+            "postprocessor_hooks": [postprocessor_hook],
+            # Merge to mp4 format
+            "merge_output_format": "mp4",
             "quiet": False,
             "no_warnings": False,
             # Increase socket timeout for slow/unreliable connections
@@ -73,42 +85,63 @@ class Downloader:
             # Check directory contents after download
             files_after = set(os.listdir(self.output_dir)) if self.output_dir.exists() else set()
             logger.debug(f"Files after download: {files_after}")
+            logger.debug(f"Final file from postprocessor hook: {final_file}")
             
-            if downloaded_file is None:
-                logger.debug("Filename not captured from hook, searching output directory")
+            # Determine the actual downloaded file
+            downloaded_file = None
+            
+            # First priority: use the postprocessor hook result if it exists
+            if final_file and final_file.exists():
+                downloaded_file = final_file
+                logger.info(f"Using file from postprocessor hook: {downloaded_file}")
+            else:
+                # Fallback: find new files in directory
+                logger.debug("Searching output directory for new files")
                 new_files = files_after - files_before
+                # Filter out partial/temp files
+                new_files = {f for f in new_files if not f.endswith(('.part', '.ytdl', '.temp'))}
                 logger.debug(f"New files detected: {new_files}")
                 
                 if new_files:
-                    newest_file = max(
-                        [self.output_dir / f for f in new_files],
-                        key=lambda p: p.stat().st_mtime
-                    )
+                    # Find the newest video file (prefer mp4)
+                    video_extensions = ('.mp4', '.mkv', '.webm', '.avi')
+                    video_files = [f for f in new_files if f.lower().endswith(video_extensions)]
+                    
+                    if video_files:
+                        newest_file = max(
+                            [self.output_dir / f for f in video_files],
+                            key=lambda p: p.stat().st_mtime
+                        )
+                    else:
+                        newest_file = max(
+                            [self.output_dir / f for f in new_files],
+                            key=lambda p: p.stat().st_mtime
+                        )
                     downloaded_file = newest_file
-                    logger.info(f"Found downloaded file: {downloaded_file}")
+                    logger.info(f"Found downloaded file via directory scan: {downloaded_file}")
                 else:
                     logger.error(f"No new files found. Before: {files_before}, After: {files_after}")
                     logger.error(f"Output directory contents: {list(self.output_dir.iterdir())}")
                     raise RuntimeError("Download completed but output file not found")
             
-            # Verify file is not empty
-            if downloaded_file.exists():
-                file_size = downloaded_file.stat().st_size
-                logger.info(f"Downloaded file size: {file_size} bytes")
-                
-                if file_size == 0:
-                    logger.error(f"Downloaded file is empty: {downloaded_file}")
-                    downloaded_file.unlink()  # Delete empty file
-                    raise RuntimeError(
-                        "Downloaded file is empty. This usually means:\n"
-                        "- Video is geo-blocked\n"
-                        "- Content is age-restricted\n"
-                        "- Video is temporarily unavailable\n"
-                        "- Network connection was interrupted\n\n"
-                        "Try a different video or check your internet connection."
-                    )
-            else:
-                raise RuntimeError(f"Downloaded file no longer exists: {downloaded_file}")
+            # Verify file exists and is not empty
+            if not downloaded_file.exists():
+                raise RuntimeError(f"Downloaded file does not exist: {downloaded_file}")
+            
+            file_size = downloaded_file.stat().st_size
+            logger.info(f"Downloaded file size: {file_size} bytes")
+            
+            if file_size == 0:
+                logger.error(f"Downloaded file is empty: {downloaded_file}")
+                downloaded_file.unlink()  # Delete empty file
+                raise RuntimeError(
+                    "Downloaded file is empty. This usually means:\n"
+                    "- Video is geo-blocked\n"
+                    "- Content is age-restricted\n"
+                    "- Video is temporarily unavailable\n"
+                    "- Network connection was interrupted\n\n"
+                    "Try a different video or check your internet connection."
+                )
             
             logger.info(f"Successfully downloaded to: {downloaded_file}")
             return downloaded_file
