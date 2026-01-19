@@ -50,11 +50,18 @@ class Downloader:
                 logger.error(f"yt-dlp error in hook: {d.get('info_dict', {}).get('exception')}")
         
         opts = {
-            "format": "best",
+            # Format selection with multiple fallbacks
+            # Priority: mp4 video+audio combo → best mp4 → best overall
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
             "outtmpl": output_template,
             "progress_hooks": [progress_hook],
             "quiet": False,
             "no_warnings": False,
+            # Increase socket timeout for slow/unreliable connections
+            "socket_timeout": 30,
+            # Retry failed fragments
+            "retries": 3,
+            "fragment_retries": 3,
         }
         
         try:
@@ -84,12 +91,47 @@ class Downloader:
                     logger.error(f"Output directory contents: {list(self.output_dir.iterdir())}")
                     raise RuntimeError("Download completed but output file not found")
             
+            # Verify file is not empty
+            if downloaded_file.exists():
+                file_size = downloaded_file.stat().st_size
+                logger.info(f"Downloaded file size: {file_size} bytes")
+                
+                if file_size == 0:
+                    logger.error(f"Downloaded file is empty: {downloaded_file}")
+                    downloaded_file.unlink()  # Delete empty file
+                    raise RuntimeError(
+                        "Downloaded file is empty. This usually means:\n"
+                        "- Video is geo-blocked\n"
+                        "- Content is age-restricted\n"
+                        "- Video is temporarily unavailable\n"
+                        "- Network connection was interrupted\n\n"
+                        "Try a different video or check your internet connection."
+                    )
+            else:
+                raise RuntimeError(f"Downloaded file no longer exists: {downloaded_file}")
+            
             logger.info(f"Successfully downloaded to: {downloaded_file}")
             return downloaded_file
         except yt_dlp.utils.DownloadError as e:
-            logger.error(f"yt-dlp download error: {e}")
-            logger.error("This may be due to: geo-blocking, age restriction, video unavailable, or network issues")
-            raise RuntimeError(f"Failed to download video: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"yt-dlp download error: {error_msg}")
+            
+            # Provide helpful error messages based on error type
+            if "empty" in error_msg.lower():
+                raise RuntimeError(
+                    "Download produced an empty file. This usually means:\n"
+                    "- Video is geo-blocked or restricted\n"
+                    "- Video requires authentication\n"
+                    "- Video is temporarily unavailable\n"
+                    "- Network connection was interrupted\n\n"
+                    "Try a different video or check your internet connection."
+                )
+            elif "age" in error_msg.lower() or "restricted" in error_msg.lower():
+                raise RuntimeError(f"Video is age-restricted or restricted: {error_msg}")
+            elif "not found" in error_msg.lower() or "no such file" in error_msg.lower():
+                raise RuntimeError(f"Video not found or no longer available: {error_msg}")
+            else:
+                raise RuntimeError(f"Failed to download video: {error_msg}")
         except Exception as e:
             logger.error(f"Download failed: {e}", exc_info=True)
             raise
